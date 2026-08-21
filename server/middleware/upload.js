@@ -1,54 +1,87 @@
-const multer = require('multer');
-const path = require('path');
-const fs = require('fs');
+const multer = require("multer");
+const path = require("path");
+const { CloudinaryStorage } = require("multer-storage-cloudinary");
+const cloudinary = require("../config/cloudinary");
 
-const AUDIO_DIR = path.join(__dirname, '..', 'uploads', 'audio');
-const IMAGE_DIR = path.join(__dirname, '..', 'uploads', 'images');
+const ALLOWED_AUDIO_TYPES = [".mp3", ".wav", ".ogg", ".m4a"];
+const ALLOWED_IMAGE_TYPES = [".jpg", ".jpeg", ".png", ".webp"];
 
-[AUDIO_DIR, IMAGE_DIR].forEach((dir) => {
-  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-});
+const storage = new CloudinaryStorage({
+  cloudinary,
 
-const ALLOWED_AUDIO_TYPES = ['.mp3', '.wav', '.ogg', '.m4a'];
-const ALLOWED_IMAGE_TYPES = ['.jpg', '.jpeg', '.png', '.webp'];
-
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    if (file.fieldname === 'audio') return cb(null, AUDIO_DIR);
-    if (file.fieldname === 'image') return cb(null, IMAGE_DIR);
-    cb(new Error('Unknown upload field'), null);
-  },
-  filename: (req, file, cb) => {
+  params: async (req, file) => {
     const ext = path.extname(file.originalname).toLowerCase();
-    const unique = `${Date.now()}-${Math.round(Math.random() * 1e9)}${ext}`;
-    cb(null, unique);
-  }
+
+    if (file.fieldname === "audio") {
+      if (!ALLOWED_AUDIO_TYPES.includes(ext)) {
+        throw new Error(
+          `Invalid audio type. Allowed: ${ALLOWED_AUDIO_TYPES.join(", ")}`
+        );
+      }
+
+      return {
+        folder: "dimusic/audio",
+        resource_type: "video",
+        public_id: `${Date.now()}-${Math.round(Math.random() * 1e9)}`,
+      };
+    }
+
+    if (file.fieldname === "image") {
+      if (!ALLOWED_IMAGE_TYPES.includes(ext)) {
+        throw new Error(
+          `Invalid image type. Allowed: ${ALLOWED_IMAGE_TYPES.join(", ")}`
+        );
+      }
+
+      return {
+        folder: "dimusic/images",
+        resource_type: "image",
+        public_id: `${Date.now()}-${Math.round(Math.random() * 1e9)}`,
+      };
+    }
+
+    throw new Error("Unknown upload field");
+  },
 });
 
 const fileFilter = (req, file, cb) => {
   const ext = path.extname(file.originalname).toLowerCase();
 
-  if (file.fieldname === 'audio') {
+  if (file.fieldname === "audio") {
     if (!ALLOWED_AUDIO_TYPES.includes(ext)) {
-      return cb(new Error(`Invalid audio type. Allowed: ${ALLOWED_AUDIO_TYPES.join(', ')}`), false);
+      return cb(
+        new Error(
+          `Invalid audio type. Allowed: ${ALLOWED_AUDIO_TYPES.join(", ")}`
+        ),
+        false
+      );
     }
+
     return cb(null, true);
   }
 
-  if (file.fieldname === 'image') {
+  if (file.fieldname === "image") {
     if (!ALLOWED_IMAGE_TYPES.includes(ext)) {
-      return cb(new Error(`Invalid image type. Allowed: ${ALLOWED_IMAGE_TYPES.join(', ')}`), false);
+      return cb(
+        new Error(
+          `Invalid image type. Allowed: ${ALLOWED_IMAGE_TYPES.join(", ")}`
+        ),
+        false
+      );
     }
+
     return cb(null, true);
   }
 
-  cb(new Error('Unknown upload field'), false);
+  cb(new Error("Unknown upload field"), false);
 };
 
 const upload = multer({
   storage,
   fileFilter,
-  limits: { fileSize: 50 * 1024 * 1024 } // 50MB
+  limits: {
+    fileSize: 50 * 1024 * 1024,
+  },
 });
 
 module.exports = upload;
